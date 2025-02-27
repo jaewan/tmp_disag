@@ -82,6 +82,6 @@ libtorch_repository = repository_rule(
     implementation = _libtorch_repository_impl,
     attrs = {
         "cuda": attr.string(default = "auto"),
-        "torch_version": attr.string(default = "2.4.1"),
+        "torch_version": attr.string(default = "2.1.0"),
     },
 )

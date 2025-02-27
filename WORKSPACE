@@ -16,9 +16,9 @@ http_archive(
 # Load rules_python
 http_archive(
     name = "rules_python",
-    sha256 = "9d04041ac92a0985e344235f5d946f71ac543f1b1565f2cdbc9a2aaee8adf55b",
-    strip_prefix = "rules_python-0.26.0",
-    url = "https://github.com/bazelbuild/rules_python/releases/download/0.26.0/rules_python-0.26.0.tar.gz",
+    sha256 = "5868e73107a8e85d8f323806e60cad7283f34b32163ea6ff1020cf27abef6036",  # Updated SHA
+    strip_prefix = "rules_python-0.25.0",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.25.0/rules_python-0.25.0.tar.gz",
 )
 
 # Initialize rules_python
@@ -29,12 +29,12 @@ py_repositories()
 load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
 python_register_toolchains(
-    name = "python3_8",
-    python_version = "3.8",
+    name = "python3_10",
+    python_version = "3.10",
 )
 
 # Get interpreter path
-load("@python3_8//:defs.bzl", "interpreter")
+load("@python3_10//:defs.bzl", "interpreter")
 
 # Load pip dependencies
 load("@rules_python//python:pip.bzl", "pip_parse")
@@ -43,6 +43,14 @@ pip_parse(
     name = "pip",
     python_interpreter_target = interpreter,
     requirements_lock = "//:requirements.txt",
+)
+
+pip_parse(
+    name = "pip_deps",
+    requirements_lock = "//:requirements.txt",
+    extra_pip_args = [
+        "--extra-index-url=https://download.pytorch.org/whl/cu121"
+    ],
 )
 
 load("@pip//:requirements.bzl", "install_deps")
