@@ -1,0 +1,5 @@
+build --cxxopt='-std=c++17'
+build --host_cxxopt='-std=c++17'
+build --copt='-D_GLIBCXX_USE_CXX11_ABI=0'
+build --action_env=CUDA_PATH=/usr/local/cuda-12.1
+build --action_env=LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64

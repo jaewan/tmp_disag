@@ -20,6 +20,13 @@ cc_library(
     deps = [
         "@libtorch",
     ],
+	copts = [
+        "-fPIC",
+        "-std=c++17",
+        "-D_GLIBCXX_USE_CXX11_ABI=0",  # Match PyTorch ABI
+        "-DTORCH_API_INCLUDE_EXTENSION_H",
+        "-DTORCH_EXTENSION_NAME=remote_cuda_ext",
+    ],
 )
 
 # Python extension module
