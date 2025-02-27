@@ -6,6 +6,11 @@ load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 
 package(default_visibility = ["//visibility:public"])
 
+config_setting(
+    name = "use_cpp17",
+    values = {"cpp_version": "c++17"},
+)
+
 # Proto definitions
 proto_library(
     name = "remote_proto",
@@ -17,16 +22,21 @@ cc_library(
     name = "remote_device_lib",
     srcs = ["csrc/remote_device.cc"],
     hdrs = ["csrc/remote_device.h"],
-    deps = [
-        "@libtorch",
-    ],
-	copts = [
-        "-fPIC",
+    copts = [
         "-std=c++17",
+        "-fPIC",
         "-D_GLIBCXX_USE_CXX11_ABI=0",  # Match PyTorch ABI
         "-DTORCH_API_INCLUDE_EXTENSION_H",
         "-DTORCH_EXTENSION_NAME=remote_cuda_ext",
     ],
+    deps = [
+        "@libtorch",
+    ],
+    includes = [
+        "@libtorch//:include",
+        "@libtorch//:include/torch/csrc/api/include",
+    ],
+	features = ["cpp17"],
 )
 
 # Python extension module
@@ -37,6 +47,12 @@ pybind_extension(
         ":remote_device_lib",
         "@libtorch",
     ],
+    copts = [
+        "-std=c++17",
+        "-fPIC",
+        "-D_GLIBCXX_USE_CXX11_ABI=0",
+    ],
+	features = ["cpp17"],
 )
 
 # Python package

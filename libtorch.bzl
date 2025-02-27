@@ -69,6 +69,7 @@ cc_library(
     ],
     deps = ["@local_config_python//:python_headers"],
     copts = [
+        "-std=c++17",  
         "-D_GLIBCXX_USE_CXX11_ABI=0",
         "-DTORCH_API_INCLUDE_EXTENSION_H",
         "-fPIC",
@@ -82,6 +83,6 @@ libtorch_repository = repository_rule(
     implementation = _libtorch_repository_impl,
     attrs = {
         "cuda": attr.string(default = "auto"),
-        "torch_version": attr.string(default = "2.4.1"),
+        "torch_version": attr.string(default = "2.5.1"),
     },
 )

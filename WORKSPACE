@@ -113,7 +113,7 @@ load("//:libtorch.bzl", "libtorch_repository")
 libtorch_repository(
     name = "libtorch",
     cuda = "auto",
-    torch_version = "2.4.1",
+    torch_version = "2.5.1",
 )
 # Load the libtorch_repository rule
 #load("//:libtorch_repository.bzl", "libtorch_repository")
