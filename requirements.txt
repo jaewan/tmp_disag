@@ -1,0 +1,9 @@
+torch==2.5.1
+nvidia-nvjitlink-cu12
+fsspec>=2023.1.0
+grpcio>=1.46.0
+protobuf>=4.25.0
+typing-extensions>=4.0.0
+numpy>=1.20.0
+sympy>=1.10.0
+filelock>=3.4.0

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package remote;
+
+service RemoteExecutor {
+  // Ping service for health check
+  rpc Ping(PingRequest) returns (PingResponse) {}
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string message = 1;
+}
