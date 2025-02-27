@@ -29,12 +29,12 @@ py_repositories()
 load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
 python_register_toolchains(
-    name = "python3_10",
-    python_version = "3.10",
+    name = "python3_8",
+    python_version = "3.8",
 )
 
 # Get interpreter path
-load("@python3_10//:defs.bzl", "interpreter")
+load("@python3_8//:defs.bzl", "interpreter")
 
 # Load pip dependencies
 load("@rules_python//python:pip.bzl", "pip_parse")
@@ -87,7 +87,6 @@ rules_proto_dependencies()
 rules_proto_toolchains()
 
 # gRPC
-# gRPC
 http_archive(
     name = "com_github_grpc_grpc",
     sha256 = "916f88a34f06b56432611aaa8c55befee96d0a7b7d7457733b9deeacbc016f99",  # Updated SHA256
@@ -106,7 +105,7 @@ load("//:libtorch.bzl", "libtorch_repository")
 libtorch_repository(
     name = "libtorch",
     cuda = "auto",
-    torch_version = "2.5.1",
+    torch_version = "2.4.1",
 )
 # Load the libtorch_repository rule
 #load("//:libtorch_repository.bzl", "libtorch_repository")

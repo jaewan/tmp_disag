@@ -1,5 +1,19 @@
-torch==2.5.1
+torch==2.4.1
+jinja2
 nvidia-nvjitlink-cu12
+nvidia-cuda-cupti-cu12
+nvidia-cuda-nvrtc-cu12
+nvidia-cuda-runtime-cu12
+nvidia-cudnn-cu12
+nvidia-cufft-cu12
+nvidia-curand-cu12
+nvidia-cusolver-cu12
+nvidia-cusparse-cu12
+nvidia-cublas-cu12
+nvidia-nccl-cu12
+nvidia-nvtx-cu12
+nvidia-cudnn-cu12
+nvidia-curand-cu12
 fsspec>=2023.1.0
 grpcio>=1.46.0
 protobuf>=4.25.0
@@ -7,3 +21,4 @@ typing-extensions>=4.0.0
 numpy>=1.20.0
 sympy>=1.10.0
 filelock>=3.4.0
+networkx
