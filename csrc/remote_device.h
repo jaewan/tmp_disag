@@ -8,10 +8,12 @@
 
 namespace remote_cuda {
 
-// Use PrivateUse1 for our custom device type
+// Use PrivateUse1 for our custom device type for prototyping.
+// For production, register a unique device type
 constexpr c10::DeviceType REMOTE_CUDA_TYPE = c10::DeviceType::PrivateUse1;
 
 // Device guard implementation
+// Implement what is in venv/lib/python3.10/site-packages/torch/include/c10/core/impl/DeviceGuardImplInterface.h
 class RemoteCUDAGuardImpl final : public c10::impl::DeviceGuardImplInterface {
  public:
   RemoteCUDAGuardImpl() = default;

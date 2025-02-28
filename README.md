@@ -21,3 +21,5 @@ Custom Device Extension with Unified Dispatch
 - Add custom logging (glog)
 - Add abseil library in the bazel
 
+### For Fully Open Source
+- Make our device type unique. Currently we use PrivateUse1 for prototype. Register a unique device type (This will involve contributing to PyTorch itself)

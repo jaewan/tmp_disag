@@ -39,12 +39,23 @@ cc_library(
 	features = ["cpp17"],
 )
 
+cc_library(
+    name = "remote_dispatch_lib",
+    srcs = ["csrc/remote_dispatch.cc"],
+    hdrs = ["csrc/remote_dispatch.h"],
+    deps = [
+        ":remote_device_lib",
+        "@libtorch",
+    ],
+)
+
 # Python extension module
 pybind_extension(
     name = "remote_cuda_ext",
     srcs = ["csrc/python_bindings.cc"],
     deps = [
         ":remote_device_lib",
+        ":remote_dispatch_lib",
         "@libtorch",
     ],
     copts = [
