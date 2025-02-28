@@ -1,17 +1,13 @@
 #pragma once
 
+#include "remote_device.h"
+
 #include <torch/extension.h>
 #include <ATen/ATen.h>
 #include <ATen/core/dispatch/Dispatcher.h>
 #include <c10/core/DeviceType.h>
 
 namespace remote_cuda {
-
-// Our device type from remote_device.h
-//extern constexpr c10::DeviceType REMOTE_CUDA_TYPE;
-
-// Helper functions for dispatch
-void update_stack_with_result(c10::Stack& stack, const at::Tensor& result);
 
 // Register dispatch keys with PyTorch's dispatcher
 void register_dispatch_keys();

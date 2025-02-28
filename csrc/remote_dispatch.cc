@@ -1,12 +1,19 @@
 #include "remote_dispatch.h"
-#include "remote_device.h"
+
 #include <iostream>
 #include <unordered_set> //TODO(Jae) change this to absl later
 
 namespace remote_cuda {
 
-// Our device type
-extern constexpr c10::DeviceType REMOTE_CUDA_TYPE;
+at::ArrayRef<at::Tensor> extract_tensors(c10::Stack& stack) {
+    std::vector<at::Tensor> tensors;
+    for (const c10::IValue& value : stack) { // Iterate through the stack.  Consider only extracting the tensors for now.  This logic needs refined.
+        if (value.isTensor()) {
+            tensors.push_back(value.toTensor());
+        }
+    }
+    return at::ArrayRef<at::Tensor>(tensors); // Return as at::ArrayRef
+}
 
 // Set of operations that should NOT be transferred to the remote GPU
 // Add more operations as needed, using their full schema name (aten::...)
@@ -40,13 +47,19 @@ at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack)
     std::string overload_name = op.schema().overload_name();
 
     // 1. Extract tensors and other necessary arguments from the stack
-    at::ArrayRef<at::Tensor> tensors = extract_tensors(*stack);
+    //at::ArrayRef<at::Tensor> tensors = extract_tensors(*stack);
 
     // 2. Serialize and send the operation and arguments to the remote server
     //at::Tensor result = rpc_client::execute_op(op_name.c_str(), overload_name.c_str(), tensors, *stack);
+    at::Tensor result;
 
     // 3. Deserialize the result from the remote server
-    update_stack_with_result(*stack, result);
+    //update_stack_with_result(*stack, result);
+                // TODO: Implement remote execution logic here
+    // 1. Serialize operation and arguments
+    // 2. Send to remote server
+    // 3. Receive and deserialize results
+    // 4. Update stack with results
 
     return result;
 }
@@ -55,29 +68,85 @@ at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack)
 void execute_op_locally(const c10::OperatorHandle& op, c10::Stack* stack) {
     std::cout << "Executing operation locally: " << op.schema().name() << std::endl;
 
-    // Execute the operation locally using op.call(stack)
-    op.call(stack);
+		// The correct way to call op locally. Figure out how to do this properly
+    //auto kernel = c10::Dispatcher::singleton().findSchema(op.schema());
+    //kernel.call(stack);
+		//deprecated:op.call(stack) & op.callBoxed(stack) is not preferred in newer pytorch
+		op.callBoxed(stack);
+}
+
+// Define a boxed fallback function outside the registerFallback call
+void remote_cuda_fallback(const c10::OperatorHandle& op, c10::Stack* stack) {
+    const std::string& op_name = op.schema().name();
+
+    // Check if the operation should be executed locally
+    if (kLocalOps.count(op_name)) {
+        execute_op_locally(op, stack);
+    } else {
+        // Move stack to remote_cuda device
+        for (c10::IValue& ivalue : *stack) {
+            if (ivalue.isTensor()) {
+                at::Tensor tensor = ivalue.toTensor();
+                if (tensor.device().type() != c10::DeviceType::PrivateUse1) {
+                    ivalue = tensor.to(c10::Device(c10::DeviceType::PrivateUse1, 0));
+                }
+            }
+        }
+        at::Tensor result = execute_op_remotely(op, stack);
+        stack->clear();
+        stack->push_back(result);
+    }
 }
 
 void register_dispatch_keys() {
-  auto dispatcher = at::globalContext().dispatchKeyExtractor();
+    auto& dispatcher = c10::Dispatcher::singleton();
 
-  // Register a catch-all fallback for all operations on REMOTE_CUDA_TYPE
-  dispatcher->registerFallback(
-    c10::DispatchKeySet({REMOTE_CUDA_TYPE}),
-    [](c10::Stack* stack) {
-      // Get operator handle from the stack
-      const c10::OperatorHandle& op = c10::Dispatcher::currentOp();
-      const std::string& op_name = op.schema().name();
+    // Create a dispatch key for our device
+    c10::DispatchKey remote_cuda_key = c10::DispatchKey::PrivateUse1;
 
-      // Check if the operation should be executed locally
-      if (kLocalOps.count(op_name)) {
-          execute_op_locally(op, stack);
-      } else {
-          execute_op_remotely(op, stack);
-      }
-    }
-  );
+    // Register a catch-all fallback for all operations on REMOTE_CUDA_TYPE
+    dispatcher.registerFallback(
+        remote_cuda_key,
+        c10::KernelFunction::makeFromBoxedFunction<&remote_cuda_fallback>(),
+        "remote_cuda_fallback"
+    );
 }
+/*
+void register_dispatch_keys() {
+    auto& dispatcher = c10::Dispatcher::singleton();
+
+    // Create a dispatch key for our device
+    c10::DispatchKey remote_cuda_key = c10::DispatchKey::PrivateUse1;
+
+    // Register a catch-all fallback for all operations on REMOTE_CUDA_TYPE
+    dispatcher.registerFallback(
+        remote_cuda_key, // Pass the DispatchKey directly
+        [](c10::Stack* stack) {
+            // Obtain the OperatorHandle from the stack
+            const c10::OperatorHandle& op = c10::peekOperatorFromStack(*stack);
+            const std::string& op_name = op.schema().name();
+
+            // Check if the operation should be executed locally
+            if (kLocalOps.count(op_name)) {
+                execute_op_locally(op, stack);
+            } else {
+                // Move stack to remote_cuda device
+                for (c10::IValue& ivalue : *stack) {
+                  if (ivalue.isTensor()) {
+                    at::Tensor tensor = ivalue.toTensor();
+                    if (tensor.device().type() != c10::DeviceType::PrivateUse1) {
+                      ivalue = tensor.to(c10::Device(c10::DeviceType::PrivateUse1, 0));
+                    }
+                  }
+                }
+                at::Tensor result = execute_op_remotely(op, stack);
+                stack->clear();
+                stack->push_back(result);
+            }
+        },
+        "remote_cuda_fallback"
+    );
+}
+*/
 
 } // namespace remote_cuda
