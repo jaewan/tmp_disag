@@ -4,36 +4,66 @@ import importlib.util
 import os
 import sys
 
+# Get the directory of the current file
+EXTENSION_NAME = "remote_cuda_ext"
+REMOTE_CUDA = torch.device("privateuseone")
+
 # -------------- Try to load the pre-compiled extension -------------- #
+
+def _find_so_file():
+    """Find the .so file in Bazel build directories"""
+    # Get the directory containing this file
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    possible_paths = [
+        # Look in the runfiles directory where Bazel puts the .so
+        os.path.join(current_dir, f"{EXTENSION_NAME}.so"),
+
+        # Try common Bazel output locations
+        os.path.join(os.path.dirname(current_dir), f"bazel-bin/{EXTENSION_NAME}.so"),
+
+        # For when running directly from workspace
+        os.path.join(os.path.dirname(current_dir), f"{EXTENSION_NAME}.so"),
+    ]
+
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+
+    return None
+
 try:
-    # Find extension in the same directory as this file
-    extension_path = os.path.join(os.path.dirname(__file__), '../remote_cuda_ext.so')
-    if os.path.exists(extension_path):
-        spec = importlib.util.spec_from_file_location("remote_cuda_ext", extension_path)
+    # Try to load pre-built extension first
+    so_path = _find_so_file()
+    if so_path:
+        spec = importlib.util.spec_from_file_location("remote_cuda_ext", so_path)
+        print("[DEBUG] before exec module")
         _ext = importlib.util.module_from_spec(spec)
+        print("[DEBUG] 1 after exec module")
+        sys.modules[spec.name] = _ext
+        print("[DEBUG] 2 after exec module")
         spec.loader.exec_module(_ext)
-        print("[DEBUG] Loaded from .so!!")
+        print("[DEBUG] after exec module")
     else:
-        # Fallback to JIT compilation
-        print("[DEBUG] Falling back to JIT compilation!!")
+        raise FileNotFoundError("[ERROR] Extension Shared library not found")
+        # Fallback to JIT compilation. Remove aboce raise Error if needed and edit the files below
+        print("[DEBUG] No pre-built extension found, falling back to JIT compilation")
+        source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         _ext = load(
             name="_remote_cuda_ext",
             sources=[
-                "csrc/remote_device.cpp",
-                "csrc/remote_dispatch.cpp",
-                #"csrc/rpc_client.cpp", 
-                #"csrc/memory_manager.cpp",
-                "csrc/python_bindings.cpp"
+                os.path.join(source_dir, "csrc/remote_device.cc"),
+                os.path.join(source_dir, "csrc/remote_dispatch.cc"),
+                os.path.join(source_dir, "csrc/python_bindings.cc")
             ],
-            extra_include_paths=["./"],
+            extra_include_paths=[source_dir],
             extra_cflags=["-O3"],
             verbose=True
         )
 except Exception as e:
     print(f"Error loading remote_cuda extension: {e}")
     sys.exit(1)
-# Constants
-REMOTE_CUDA = torch.device("privateuseone")
+
 
 # Initialize with a no-op function for initial build testing
 def init(server_address="localhost:50051"):
@@ -68,6 +98,6 @@ class RemoteCudaModule:
 # Add module to torch namespace
 torch.remote_cuda = RemoteCudaModule()
 
-# Initialize the device with PyTorch
-_ext.register_device()
-_ext.register_dispatch_keys()
+# Initialize the device with PyTorch alternatively from python_bindings.cc
+#_ext.register_device()
+#_ext.register_dispatch_keys()
