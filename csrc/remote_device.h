@@ -5,6 +5,7 @@
 #include <c10/core/Device.h>
 #include <ATen/core/dispatch/Dispatcher.h>
 #include <c10/core/impl/DeviceGuardImplInterface.h>
+#include <c10/core/DeviceGuard.h>
 
 namespace remote_cuda {
 

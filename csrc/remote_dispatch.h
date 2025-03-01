@@ -5,7 +5,6 @@
 #include <torch/extension.h>
 #include <ATen/ATen.h>
 #include <ATen/core/dispatch/Dispatcher.h>
-#include <c10/core/DeviceType.h>
 
 namespace remote_cuda {
 

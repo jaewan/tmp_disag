@@ -111,42 +111,5 @@ void register_dispatch_keys() {
         "remote_cuda_fallback"
     );
 }
-/*
-void register_dispatch_keys() {
-    auto& dispatcher = c10::Dispatcher::singleton();
-
-    // Create a dispatch key for our device
-    c10::DispatchKey remote_cuda_key = c10::DispatchKey::PrivateUse1;
-
-    // Register a catch-all fallback for all operations on REMOTE_CUDA_TYPE
-    dispatcher.registerFallback(
-        remote_cuda_key, // Pass the DispatchKey directly
-        [](c10::Stack* stack) {
-            // Obtain the OperatorHandle from the stack
-            const c10::OperatorHandle& op = c10::peekOperatorFromStack(*stack);
-            const std::string& op_name = op.schema().name();
-
-            // Check if the operation should be executed locally
-            if (kLocalOps.count(op_name)) {
-                execute_op_locally(op, stack);
-            } else {
-                // Move stack to remote_cuda device
-                for (c10::IValue& ivalue : *stack) {
-                  if (ivalue.isTensor()) {
-                    at::Tensor tensor = ivalue.toTensor();
-                    if (tensor.device().type() != c10::DeviceType::PrivateUse1) {
-                      ivalue = tensor.to(c10::Device(c10::DeviceType::PrivateUse1, 0));
-                    }
-                  }
-                }
-                at::Tensor result = execute_op_remotely(op, stack);
-                stack->clear();
-                stack->push_back(result);
-            }
-        },
-        "remote_cuda_fallback"
-    );
-}
-*/
 
 } // namespace remote_cuda

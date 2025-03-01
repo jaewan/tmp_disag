@@ -64,17 +64,27 @@ pybind_extension(
         "-D_GLIBCXX_USE_CXX11_ABI=0",
     ],
 	features = ["cpp17"],
-	out = "remote_cuda_ext.so",
 )
 
 # Python package
 py_library(
     name = "remote_cuda",
     srcs = glob(["remote_cuda/*.py"]),
-    data = [":remote_cuda_ext"],
+    data = [":remote_cuda_ext.so"],
     imports = ["."],
     deps = [
         requirement("torch"),
+    ],
+)
+
+# Python Unit tests
+# run "bazel test //:device_test"
+py_test(
+    name = "device_test",
+    srcs = ["tests/test_device.py"],
+    deps = [
+        ":remote_cuda",
+		requirement("torch"),
     ],
 )
 
