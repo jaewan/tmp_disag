@@ -2,9 +2,13 @@ import torch
 import remote_cuda
 
 def main():
+
+    print(torch.device("privateuse1:0"))  # Should not throw an error
+
     print("Testing remote_cuda module:")
     print(f"Remote CUDA is available: {remote_cuda.is_available()}")
     print(f"REMOTE_CUDA device: {remote_cuda.REMOTE_CUDA}")
+
     
     # Create a simple tensor
     a = torch.tensor([1.0, 2.0, 3.0])

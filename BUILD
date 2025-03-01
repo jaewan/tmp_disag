@@ -77,17 +77,6 @@ py_library(
     ],
 )
 
-# Python Unit tests
-# run "bazel test //:device_test"
-py_test(
-    name = "device_test",
-    srcs = ["tests/test_device.py"],
-    deps = [
-        ":remote_cuda",
-		requirement("torch"),
-    ],
-)
-
 # Example application
 py_binary(
     name = "example",

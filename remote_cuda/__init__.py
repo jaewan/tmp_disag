@@ -37,13 +37,9 @@ try:
     so_path = _find_so_file()
     if so_path:
         spec = importlib.util.spec_from_file_location("remote_cuda_ext", so_path)
-        print("[DEBUG] before exec module")
         _ext = importlib.util.module_from_spec(spec)
-        print("[DEBUG] 1 after exec module")
         sys.modules[spec.name] = _ext
-        print("[DEBUG] 2 after exec module")
         spec.loader.exec_module(_ext)
-        print("[DEBUG] after exec module")
     else:
         raise FileNotFoundError("[ERROR] Extension Shared library not found")
         # Fallback to JIT compilation. Remove aboce raise Error if needed and edit the files below
