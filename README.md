@@ -19,6 +19,7 @@ Custom Device Extension with Unified Dispatch
 
 ### Project Management
 - Separate tests to tests directory. Complete tests/BUILD working
+- Have libtorch.bzl and spdlog.BUILD in third\_party directory and modify BUILD accordingly
 
 ### For Fully Open Source
 - Make our device type unique. Currently we use PrivateUse1 for prototype. Register a unique device type (This will involve contributing to PyTorch itself)
