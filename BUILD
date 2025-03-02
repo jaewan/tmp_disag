@@ -4,7 +4,10 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@pip//:requirements.bzl", "requirement")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 
-package(default_visibility = ["//visibility:public"])
+package(
+    default_visibility = ["//visibility:public"],
+    features = ["cpp17"],
+)
 
 config_setting(
     name = "use_cpp17",
@@ -31,6 +34,7 @@ cc_library(
     ],
     deps = [
         "@libtorch",
+		"@spdlog//:spdlog",
     ],
     includes = [
         "@libtorch//:include",
@@ -46,6 +50,8 @@ cc_library(
     deps = [
         ":remote_device_lib",
         "@libtorch",
+		"@spdlog//:spdlog",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
 
@@ -57,13 +63,15 @@ pybind_extension(
         ":remote_device_lib",
         ":remote_dispatch_lib",
         "@libtorch",
+        "@spdlog//:spdlog",
     ],
     copts = [
         "-std=c++17",
         "-fPIC",
         "-D_GLIBCXX_USE_CXX11_ABI=0",
+        "-DSPDLOG_COMPILED_LIB",
     ],
-	features = ["cpp17"],
+    features = ["cpp17"],
 )
 
 # Python package

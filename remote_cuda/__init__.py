@@ -6,6 +6,8 @@ import sys
 
 # Get the directory of the current file
 EXTENSION_NAME = "remote_cuda_ext"
+torch._C._rename_privateuse1_backend("remote_cuda")
+torch.utils.generate_methods_for_privateuse1_backend()
 REMOTE_CUDA = torch.device("privateuseone")
 
 # -------------- Try to load the pre-compiled extension -------------- #
@@ -90,9 +92,22 @@ class RemoteCudaModule:
     def __init__(self):
         self.is_available = is_available
         self.__version__ = "0.1.0"
+        self.device = REMOTE_CUDA
+        self.name = REMOTE_CUDA
+
+torch._register_device_module("remote_cuda", RemoteCudaModule())
 
 # Add module to torch namespace
 torch.remote_cuda = RemoteCudaModule()
+
+
+# Ensure our ops are available to the PyTorch dispatcher
+if hasattr(torch.ops, 'load_library'):
+    try:
+        torch.ops.load_library(so_path)
+        print("Remote CUDA operations loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not load operations: {e}")
 
 # Initialize the device with PyTorch alternatively from python_bindings.cc
 #_ext.register_device()

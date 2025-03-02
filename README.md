@@ -18,8 +18,7 @@ Custom Device Extension with Unified Dispatch
 - Optimize data transfer to remote GPU using DPDK
 
 ### Project Management
-- Add custom logging (glog)
-- Add abseil library in the bazel
+- Separate tests to tests directory. Complete tests/BUILD working
 
 ### For Fully Open Source
 - Make our device type unique. Currently we use PrivateUse1 for prototype. Register a unique device type (This will involve contributing to PyTorch itself)

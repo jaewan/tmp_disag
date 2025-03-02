@@ -6,6 +6,8 @@
 #include <ATen/core/dispatch/Dispatcher.h>
 #include <c10/core/impl/DeviceGuardImplInterface.h>
 #include <c10/core/DeviceGuard.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 
 namespace remote_cuda {
 

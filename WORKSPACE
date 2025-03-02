@@ -16,7 +16,7 @@ http_archive(
 # Load rules_python
 http_archive(
     name = "rules_python",
-    sha256 = "5868e73107a8e85d8f323806e60cad7283f34b32163ea6ff1020cf27abef6036",  # Updated SHA
+    sha256 = "5868e73107a8e85d8f323806e60cad7283f34b32163ea6ff1020cf27abef6036",
     strip_prefix = "rules_python-0.25.0",
     url = "https://github.com/bazelbuild/rules_python/releases/download/0.25.0/rules_python-0.25.0.tar.gz",
 )
@@ -97,7 +97,7 @@ rules_proto_toolchains()
 # gRPC
 http_archive(
     name = "com_github_grpc_grpc",
-    sha256 = "916f88a34f06b56432611aaa8c55befee96d0a7b7d7457733b9deeacbc016f99",  # Updated SHA256
+    sha256 = "916f88a34f06b56432611aaa8c55befee96d0a7b7d7457733b9deeacbc016f99", 
     strip_prefix = "grpc-1.59.1",
     urls = ["https://github.com/grpc/grpc/archive/v1.59.1.tar.gz"],
 )
@@ -115,13 +115,21 @@ libtorch_repository(
     cuda = "auto",
     torch_version = "2.5.1",
 )
-# Load the libtorch_repository rule
-#load("//:libtorch_repository.bzl", "libtorch_repository")
 
-# Define the libtorch repository
-#libtorch_repository(
-#    name = "libtorch",
-#    pytorch_version = "2.5.1",  # Specify the desired PyTorch version
-#    cuda_tag = "cu121",         # Specify the CUDA tag (e.g., "cu121" for CUDA 12.1, "cpu" for CPU-only)
-#    sha256 = "",  # Optional: Add SHA256 for verification
-#)
+# absl
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "com_google_absl",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20230802.0.tar.gz"],
+    strip_prefix = "abseil-cpp-20230802.0",
+    sha256 = "3e5cfea7bbf3e7e6b3d7e4d07d0dbb60a32a9e3eee3e21ec3a5e5b7a4a1da27d",
+)
+
+http_archive(
+    name = "spdlog",
+    urls = ["https://github.com/gabime/spdlog/archive/v1.12.0.tar.gz"],
+    strip_prefix = "spdlog-1.12.0",
+    sha256 = "4dccf2d10f410c1e2feaff89966bfc49a1abb29ef6f08246335b110e001e09a9",
+    build_file = "//:spdlog.BUILD", 
+)

@@ -1,7 +1,7 @@
 #include "remote_dispatch.h"
 
 #include <iostream>
-#include <unordered_set> //TODO(Jae) change this to absl later
+#include "absl/container/flat_hash_set.h"
 
 namespace remote_cuda {
 
@@ -17,7 +17,7 @@ at::ArrayRef<at::Tensor> extract_tensors(c10::Stack& stack) {
 
 // Set of operations that should NOT be transferred to the remote GPU
 // Add more operations as needed, using their full schema name (aten::...)
-const std::unordered_set<std::string> kLocalOps = {
+const absl::flat_hash_set<std::string> kLocalOps = {
     "aten::size",      // Device-agnostic: size of a tensor
     "aten::stride",    // Device-agnostic: stride of a tensor
     "aten::dim",       // Device-agnostic: dimension of a tensor
@@ -43,6 +43,7 @@ const std::unordered_set<std::string> kLocalOps = {
 
 // Function to execute an operation on the remote server
 at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack) {
+    std::cout << "[DEBUG] Executing operation from remote: " << op.schema().name() << std::endl;
     std::string op_name = op.schema().name();
     std::string overload_name = op.schema().overload_name();
 
@@ -66,7 +67,7 @@ at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack)
 
 // Function to execute operation locally
 void execute_op_locally(const c10::OperatorHandle& op, c10::Stack* stack) {
-    std::cout << "Executing operation locally: " << op.schema().name() << std::endl;
+		SPDLOG_INFO("[DEBUG] Executing operation locally {}",op.schema().name());
 
 		// The correct way to call op locally. Figure out how to do this properly
     //auto kernel = c10::Dispatcher::singleton().findSchema(op.schema());
@@ -77,6 +78,7 @@ void execute_op_locally(const c10::OperatorHandle& op, c10::Stack* stack) {
 
 // Define a boxed fallback function outside the registerFallback call
 void remote_cuda_fallback(const c10::OperatorHandle& op, c10::Stack* stack) {
+		SPDLOG_INFO("[DEBUG] remote_cuda_fallback called");
     const std::string& op_name = op.schema().name();
 
     // Check if the operation should be executed locally
@@ -99,11 +101,13 @@ void remote_cuda_fallback(const c10::OperatorHandle& op, c10::Stack* stack) {
 }
 
 void register_dispatch_keys() {
+		SPDLOG_INFO("Register dispatch keys  called");
     auto& dispatcher = c10::Dispatcher::singleton();
 
     // Create a dispatch key for our device
     c10::DispatchKey remote_cuda_key = c10::DispatchKey::PrivateUse1;
 
+		std::cout << "[DEBUG] register_dispatch_keys called" << std::endl;
     // Register a catch-all fallback for all operations on REMOTE_CUDA_TYPE
     dispatcher.registerFallback(
         remote_cuda_key,

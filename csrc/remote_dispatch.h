@@ -5,6 +5,8 @@
 #include <torch/extension.h>
 #include <ATen/ATen.h>
 #include <ATen/core/dispatch/Dispatcher.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 
 namespace remote_cuda {
 
