@@ -1,7 +1,9 @@
 #include "remote_dispatch.h"
 
-#include <iostream>
 #include "absl/container/flat_hash_set.h"
+#include <c10/core/SymIntArrayRef.h> 
+#include <c10/core/SymInt.h> 
+
 
 namespace remote_cuda {
 
@@ -43,7 +45,7 @@ const absl::flat_hash_set<std::string> kLocalOps = {
 
 // Function to execute an operation on the remote server
 at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack) {
-	std::cout << "[DEBUG] Executing operation from remote: " << op.schema().name() << std::endl;
+	SPDLOG_INFO("[DEBUG] Executing operation from remote {}",op.schema().name());
 	std::string op_name = op.schema().name();
 	std::string overload_name = op.schema().overload_name();
 
@@ -158,10 +160,99 @@ at::Tensor handle_empty_strided(c10::IntArrayRef size, c10::IntArrayRef stride, 
 	return tensor;
 }
 
+at::Tensor handle_copy_from(const at::Tensor& self, const at::Tensor& dst, bool non_blocking) {
+    // Ensure the destination tensor is on your custom device
+    TORCH_CHECK(dst.device().type() == c10::DeviceType::PrivateUse1,
+                "_copy_from: Destination tensor must be on the REMOTE_CUDA device");
+
+    // Ensure the source tensor is not on your custom device
+    TORCH_CHECK(self.device().type() != c10::DeviceType::PrivateUse1,
+                "_copy_from: Source tensor must not be on the REMOTE_CUDA device");
+
+    // 1. Serialize the source tensor's data
+    const void* src_data = self.data_ptr();
+    size_t src_num_bytes = self.nbytes();
+
+    // For demonstration, log the copy operation
+    SPDLOG_INFO("[DEBUG] Copying {} bytes from CPU to REMOTE_CUDA device", src_num_bytes);
+
+    // 2. Allocate memory on the remote device (if not already allocated)
+    void* dest_data = dst.data_ptr();
+    TORCH_CHECK(dest_data, "_copy_from: Destination tensor's data pointer is null");
+
+    // 3. Simulate copying the data to the remote device
+    memcpy(dest_data, src_data, src_num_bytes);
+
+    // 4. Return the destination tensor
+    return dst;
+}
+
+at::Tensor& handle_copy_(at::Tensor& self, const at::Tensor& src, bool non_blocking) {
+    TORCH_CHECK(self.device().type() == c10::DeviceType::PrivateUse1,
+                "copy_: Destination tensor must be on the REMOTE_CUDA device");
+
+    TORCH_CHECK(src.device().type() != c10::DeviceType::PrivateUse1,
+                "copy_: Source tensor must not be on the REMOTE_CUDA device");
+
+    // 1. Serialize the source tensor's data
+    const void* src_data = src.data_ptr();
+    size_t src_num_bytes = src.nbytes();
+
+    // 2. Copy the data to the destination tensor
+    void* dest_data = self.data_ptr();
+    TORCH_CHECK(dest_data, "copy_: Destination tensor's data pointer is null");
+
+    memcpy(dest_data, src_data, src_num_bytes);
+
+    // 3. Return the modified destination tensor
+    return self;
+}
+
+at::Tensor handle_to(const at::Tensor& self, c10::Device device, at::ScalarType dtype, bool non_blocking, bool copy) {
+    if (device.type() == c10::DeviceType::PrivateUse1) {
+        // Create a new tensor on the REMOTE_CUDA device
+        at::Tensor result = at::empty_strided(self.sizes(), self.strides(), self.options().device(device).dtype(dtype));
+        return handle_copy_from(self, result, non_blocking);
+    } else {
+        TORCH_CHECK(false, "handle_to: Only supports moving to REMOTE_CUDA for now");
+    }
+}
+
+at::Tensor& handle_resize_(at::Tensor& self, c10::ArrayRef<c10::SymInt> size, c10::optional<c10::MemoryFormat> memory_format) {
+    // Ensure the tensor is on the REMOTE_CUDA device
+    TORCH_CHECK(self.device().type() == c10::DeviceType::PrivateUse1,
+                "resize_: Tensor must be on the REMOTE_CUDA device");
+
+    // Convert c10::ArrayRef<c10::SymInt> to std::vector<int64_t> for compatibility
+    std::vector<int64_t> size_vec;
+    size_vec.reserve(size.size());
+    for (const auto& symint : size) {
+        size_vec.push_back(symint.expect_int()); // Convert symbolic integers to regular integers
+    }
+
+    // Handle the memory format (not used in this minimal implementation)
+    if (memory_format.has_value()) {
+        TORCH_CHECK(
+            memory_format.value() == c10::MemoryFormat::Contiguous,
+            "resize_: Only contiguous memory format is supported for remote_cuda"
+        );
+    }
+
+    // Perform the resize operation
+    self.resize_(size_vec); // Resize the tensor based on the new size
+
+    // Return the modified tensor
+    return self;
+}
+
 } // namespace remote_cuda
 
 
 //TORCH_LIBRARY_IMPL(aten, c10::DispatchKey::PrivateUse1, m) {
 TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
 		m.impl("empty_strided", remote_cuda::handle_empty_strided);
+		m.impl("_copy_from", remote_cuda::handle_copy_from);
+		m.impl("to", remote_cuda::handle_to);
+		m.impl("resize_", remote_cuda::handle_resize_);
+		m.impl("copy_", remote_cuda::handle_copy_);
 }
