@@ -3,6 +3,7 @@
 ## Features
 Custom Device Extension with Unified Dispatch
 - Leverages PyTorch's dispatcher system to intercept operations at a high level (do not need to manually implement each tensor operation unlike pure custom device extension)
+- It uses fallback mechanism as primary scheme to capture all tensor operations to forward to remote GPU server
 - Provides proper memory management through the custom device type
 - Allows for a clean separation between PyTorch's API and your remote execution logic
 
@@ -23,4 +24,5 @@ Custom Device Extension with Unified Dispatch
 - Have libtorch.bzl and spdlog.BUILD in third\_party directory and modify BUILD accordingly
 
 ### For Fully Open Source
-- Make our device type unique. Currently we use PrivateUse1 for prototype. Register a unique device type (This will involve contributing to PyTorch itself)
+- Make our device type unique(contribute to Pytorch). Currently we use PrivateUse1 for prototype. Register a unique device type (This will involve contributing to PyTorch itself)
+- Because we use PrivateUse1 which is experimental, the repo registers the device using Aten::detail which may change later without notice (non-public API).
