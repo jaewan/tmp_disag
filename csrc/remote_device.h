@@ -9,8 +9,8 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 
-namespace remote_cuda {
 
+namespace remote_cuda {
 // Use PrivateUse1 for our custom device type for prototyping.
 // For production, register a unique device type
 constexpr c10::DeviceType REMOTE_CUDA_TYPE = c10::DeviceType::PrivateUse1;

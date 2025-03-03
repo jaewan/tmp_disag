@@ -1,13 +1,11 @@
 #include "remote_device.h"
 #include <iostream>
 
-
 namespace remote_cuda {
 
 // Register our device guard implementation
 // This macro associates our guard implementation with our device type
 C10_REGISTER_GUARD_IMPL(PrivateUse1, RemoteCUDAGuardImpl);
-
 
 void register_device() {
 	SPDLOG_INFO("Remote CUDA device registration started");
