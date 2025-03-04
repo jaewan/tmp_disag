@@ -20,8 +20,8 @@ Custom Device Extension with Unified Dispatch
 
 ### Project Management
 - Make bazel to use C++17. When you make an explicit error, it says Bazel uses C++14. It is likely because of gRPC using C++14.
-- Separate tests to tests directory. Complete tests/BUILD working
 - Have libtorch.bzl and spdlog.BUILD in third\_party directory and modify BUILD accordingly
+- Separate tests to tests directory. Complete tests/BUILD working
 
 ### For Fully Open Source
 - Make our device type unique(contribute to Pytorch). Currently we use PrivateUse1 for prototype. Register a unique device type (This will involve contributing to PyTorch itself)
