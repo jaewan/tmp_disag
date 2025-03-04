@@ -3,6 +3,7 @@
 #include "absl/container/flat_hash_set.h"
 #include <c10/core/SymIntArrayRef.h> 
 #include <c10/core/SymInt.h> 
+#include <ATen/native/CPUFallback.h>
 
 
 namespace remote_cuda {
@@ -74,8 +75,11 @@ void execute_op_locally(const c10::OperatorHandle& op, c10::Stack* stack) {
 	// The correct way to call op locally. Figure out how to do this properly
 	//auto kernel = c10::Dispatcher::singleton().findSchema(op.schema());
 	//kernel.call(stack);
-	//deprecated:op.call(stack) & op.callBoxed(stack) is not preferred in newer pytorch
-	op.callBoxed(stack);
+	// Redispatch to CPU backend
+	//op.redispatchBoxed(c10::DispatchKeySet(at::DispatchKey::CPU), stack);
+
+	// Slower but more stable and suggested version
+	at::native::cpu_fallback(op, stack);
 }
 
 // Define a boxed fallback function outside the registerFallback call
@@ -120,9 +124,13 @@ void register_dispatch_keys() {
 }
 
 //----------- Bare Minimum Operations -----------
+/*
 at::Tensor handle_empty_strided(c10::IntArrayRef size, c10::IntArrayRef stride, c10::optional<at::ScalarType> dtype_opt, 
 		c10::optional<c10::Layout> layout_opt, c10::optional<c10::Device> device_opt, 
 		c10::optional<bool> pin_memory_opt) {
+	SPDLOG_INFO("[DEBUG] empty_strided called");
+	return at::native::empty_cpu(size, dtype_opt, layout_opt,
+															 c10::Device(c10::DeviceType::CPU), pin_memory_opt, memory_format_opt);
 	// Ensure the device is of type REMOTE_CUDA_TYPE
 	TORCH_CHECK(device_opt.has_value() && device_opt->type() == REMOTE_CUDA_TYPE, 
 			"empty_strided: Expected device of type REMOTE_CUDA_TYPE");
@@ -159,8 +167,35 @@ at::Tensor handle_empty_strided(c10::IntArrayRef size, c10::IntArrayRef stride, 
 	at::Tensor tensor = at::from_blob(remote_ptr, size, stride, options);
 	return tensor;
 }
+*/
+at::Tensor handle_empty_strided(
+    c10::IntArrayRef size, c10::IntArrayRef stride,
+    c10::optional<at::ScalarType> dtype_opt,
+    c10::optional<c10::Layout> layout_opt,
+    c10::optional<c10::Device> device_opt,
+    c10::optional<bool> pin_memory_opt) {
+
+    SPDLOG_INFO("[DEBUG] Redirecting aten::empty_strided to CPU");
+
+    return at::native::empty_strided_cpu(size, stride, dtype_opt, layout_opt, c10::Device(c10::DeviceType::CPU), pin_memory_opt);
+}
+
+// Handle tensor creation explicitly
+at::Tensor handle_empty_memory_format(
+    c10::IntArrayRef size,
+    c10::optional<at::ScalarType> dtype_opt,
+    c10::optional<c10::Layout> layout_opt,
+    c10::optional<c10::Device> device_opt,
+    c10::optional<bool> pin_memory_opt,
+    c10::optional<at::MemoryFormat> memory_format_opt) {
+
+    SPDLOG_INFO("[DEBUG] Redirecting aten::empty.memory_format to CPU");
+    return at::native::empty_cpu(size, dtype_opt, layout_opt,
+                                 c10::Device(c10::DeviceType::CPU), pin_memory_opt, memory_format_opt);
+}
 
 at::Tensor handle_copy_from(const at::Tensor& self, const at::Tensor& dst, bool non_blocking) {
+		SPDLOG_INFO("[DEBUG] copy_from called");
     // Ensure the destination tensor is on your custom device
     TORCH_CHECK(dst.device().type() == c10::DeviceType::PrivateUse1,
                 "_copy_from: Destination tensor must be on the REMOTE_CUDA device");
@@ -188,6 +223,7 @@ at::Tensor handle_copy_from(const at::Tensor& self, const at::Tensor& dst, bool 
 }
 
 at::Tensor& handle_copy_(at::Tensor& self, const at::Tensor& src, bool non_blocking) {
+		SPDLOG_INFO("[DEBUG] copy_ called");
     TORCH_CHECK(self.device().type() == c10::DeviceType::PrivateUse1,
                 "copy_: Destination tensor must be on the REMOTE_CUDA device");
 
@@ -209,6 +245,7 @@ at::Tensor& handle_copy_(at::Tensor& self, const at::Tensor& src, bool non_block
 }
 
 at::Tensor handle_to(const at::Tensor& self, c10::Device device, at::ScalarType dtype, bool non_blocking, bool copy) {
+		SPDLOG_INFO("[DEBUG] to called");
     if (device.type() == c10::DeviceType::PrivateUse1) {
         // Create a new tensor on the REMOTE_CUDA device
         at::Tensor result = at::empty_strided(self.sizes(), self.strides(), self.options().device(device).dtype(dtype));
@@ -218,19 +255,25 @@ at::Tensor handle_to(const at::Tensor& self, c10::Device device, at::ScalarType 
     }
 }
 
-at::Tensor& handle_resize_(at::Tensor& self, c10::ArrayRef<c10::SymInt> size, c10::optional<c10::MemoryFormat> memory_format) {
+at::Tensor const& handle_resize_(at::Tensor const& self,
+                                c10::ArrayRef<c10::SymInt> size,
+                                c10::optional<c10::MemoryFormat> memory_format) {
+		SPDLOG_INFO("[DEBUG] resize called");
+    // Get a mutable reference to work with
+    at::Tensor& mutable_self = const_cast<at::Tensor&>(self);
+
     // Ensure the tensor is on the REMOTE_CUDA device
-    TORCH_CHECK(self.device().type() == c10::DeviceType::PrivateUse1,
+    TORCH_CHECK(mutable_self.device().type() == c10::DeviceType::PrivateUse1,
                 "resize_: Tensor must be on the REMOTE_CUDA device");
 
-    // Convert c10::ArrayRef<c10::SymInt> to std::vector<int64_t> for compatibility
+    // Convert c10::ArrayRef<c10::SymInt> to std::vector<int64_t>
     std::vector<int64_t> size_vec;
     size_vec.reserve(size.size());
     for (const auto& symint : size) {
-        size_vec.push_back(symint.expect_int()); // Convert symbolic integers to regular integers
+        size_vec.push_back(symint.expect_int());
     }
 
-    // Handle the memory format (not used in this minimal implementation)
+    // Handle the memory format
     if (memory_format.has_value()) {
         TORCH_CHECK(
             memory_format.value() == c10::MemoryFormat::Contiguous,
@@ -239,9 +282,9 @@ at::Tensor& handle_resize_(at::Tensor& self, c10::ArrayRef<c10::SymInt> size, c1
     }
 
     // Perform the resize operation
-    self.resize_(size_vec); // Resize the tensor based on the new size
+    mutable_self.resize_(size_vec);
 
-    // Return the modified tensor
+    // Return the const reference as required by the signature
     return self;
 }
 
@@ -255,4 +298,5 @@ TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
 		m.impl("to", remote_cuda::handle_to);
 		m.impl("resize_", remote_cuda::handle_resize_);
 		m.impl("copy_", remote_cuda::handle_copy_);
+		m.impl("empty.memory_format", remote_cuda::handle_empty_memory_format);
 }
