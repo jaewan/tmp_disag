@@ -40,8 +40,6 @@ class RemoteCUDAPrivateUse1Hooks : public at::PrivateUse1HooksInterface {
 };
 
 void register_device() {
-	SPDLOG_INFO("Remote CUDA device registration started");
-
 	static RemoteCUDAPrivateUse1Hooks private_use_1_hooks;
 	// This implementation directly uses Aten/detail code which is discouraged
 	// as it is pytorch internal code and subject to change without notice

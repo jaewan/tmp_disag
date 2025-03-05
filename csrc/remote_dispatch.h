@@ -17,7 +17,6 @@ namespace remote_cuda {
 // as that Macro requires hardcoded type, not variable. cannot use this variable
 constexpr c10::DispatchKey REMOTE_CUDA_KEY = c10::DispatchKey::PrivateUse1;
 
-// Register dispatch keys with PyTorch's dispatcher
 void register_dispatch_keys();
 
 // Handle specific operation types

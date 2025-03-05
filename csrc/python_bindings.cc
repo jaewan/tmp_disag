@@ -10,6 +10,7 @@ void setup_logging() {
 
 		// Pattern with source location:
 		spdlog::set_pattern("[%H:%M:%S.%e][%t][%s:%#] %v");
+		spdlog::flush_on(spdlog::level::info);
 
 		// Or if you want a more detailed pattern:
 		// spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] [thread %t] [%s:%#:%!] %v");
@@ -29,8 +30,8 @@ PYBIND11_MODULE(remote_cuda_ext, m) {
     m.attr("REMOTE_CUDA") = py::int_(static_cast<int>(remote_cuda::REMOTE_CUDA_TYPE));
 
     // -------- Add any additional bindings here --------
-    m.def("register_device", &remote_cuda::register_device, 
+		m.def("register_device", &remote_cuda::register_device, 
 				"Register remote CUDA device type with PyTorch");
-    m.def("register_dispatch_keys", &remote_cuda::register_dispatch_keys, 
+		m.def("register_dispatch_keys", &remote_cuda::register_dispatch_keys,
 				"Register dispatcher keys for remote operations");
 }
