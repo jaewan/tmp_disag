@@ -5,7 +5,6 @@
 #include <c10/core/SymInt.h> 
 #include <ATen/native/CPUFallback.h>
 #include <c10/core/CPUAllocator.h>
-#include <iostream>
 
 /*
  * Fallback works for operators that do not have a more specific kernel registered for PrivateUse1 device.
@@ -54,9 +53,9 @@ const absl::flat_hash_set<std::string> kLocalOps = {
 
 // Function to execute an operation on the remote server
 at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack) {
-	SPDLOG_INFO("[DEBUG] Executing operation from remote {}",op.schema().name());
 	std::string op_name = op.schema().name();
 	std::string overload_name = op.schema().overload_name();
+	SPDLOG_INFO("[DEBUG] Executing operation from remote {}",op_name);
 
 	// 1. Extract tensors and other necessary arguments from the stack
 	//at::ArrayRef<at::Tensor> tensors = extract_tensors(*stack);
@@ -78,7 +77,6 @@ at::Tensor execute_op_remotely(const c10::OperatorHandle& op, c10::Stack* stack)
 
 // Function to execute operation locally
 void execute_op_locally(const c10::OperatorHandle& op, c10::Stack* stack) {
-	std::cout<<"[DEBUG] Executing operation locally {}" << op.schema().name();
 	SPDLOG_INFO("[DEBUG] Executing operation locally {}",op.schema().name());
 
 	// The correct way to call op locally. Figure out how to do this properly
@@ -93,7 +91,6 @@ void execute_op_locally(const c10::OperatorHandle& op, c10::Stack* stack) {
 
 // Define a boxed fallback function outside the registerFallback call
 void remote_cuda_fallback(const c10::OperatorHandle& op, c10::Stack* stack) {
-	std::cout << "[DEBUG] remote_cuda_fallback called" << std::endl;
 	SPDLOG_INFO("[DEBUG] remote_cuda_fallback called");
 	const std::string& op_name = op.schema().name();
 
@@ -125,6 +122,8 @@ void register_dispatch_keys() {
 	// Even though this is an empty function, calling this is critical
 	SPDLOG_INFO("Register dispatch keys called");
 	/*
+	 * This commented impl does not work as I register some kernels with
+	 * TORCH macro
 	auto& dispatcher = c10::Dispatcher::singleton();
 
 	// Register a catch-all fallback for all operations on REMOTE_CUDA_TYPE
@@ -137,13 +136,10 @@ void register_dispatch_keys() {
 }
 
 //----------- Bare Minimum Operations -----------
-/*
 at::Tensor handle_empty_strided(c10::IntArrayRef size, c10::IntArrayRef stride, c10::optional<at::ScalarType> dtype_opt, 
 		c10::optional<c10::Layout> layout_opt, c10::optional<c10::Device> device_opt, 
 		c10::optional<bool> pin_memory_opt) {
 	SPDLOG_INFO("[DEBUG] empty_strided called");
-	return at::native::empty_cpu(size, dtype_opt, layout_opt,
-															 c10::Device(c10::DeviceType::CPU), pin_memory_opt, memory_format_opt);
 	// Ensure the device is of type REMOTE_CUDA_TYPE
 	TORCH_CHECK(device_opt.has_value() && device_opt->type() == REMOTE_CUDA_TYPE, 
 			"empty_strided: Expected device of type REMOTE_CUDA_TYPE");
@@ -180,47 +176,9 @@ at::Tensor handle_empty_strided(c10::IntArrayRef size, c10::IntArrayRef stride, 
 	at::Tensor tensor = at::from_blob(remote_ptr, size, stride, options);
 	return tensor;
 }
-*/
-void deleter(void* data) {
-  std::cout << " Deleter called" << std::endl;
-  free(data);
-}
-at::Tensor handle_empty_strided(
-    c10::IntArrayRef size, c10::IntArrayRef stride,
-    c10::optional<at::ScalarType> dtype_opt,
-    c10::optional<c10::Layout> layout_opt,
-    c10::optional<c10::Device> device_opt,
-    c10::optional<bool> pin_memory_opt) {
-
-	 SPDLOG_INFO("[DEBUG] empty_strided called");
-
-    // Create the CPU tensor explicitly on the CPU device
-    at::Tensor cpu_tensor = at::native::empty_strided_cpu(size, stride, dtype_opt, layout_opt, c10::Device(c10::kCPU), pin_memory_opt);
-
-    at::TensorOptions options;
-    options = options.device(device_opt.value_or(c10::Device(REMOTE_CUDA_TYPE, 0))); // Important: Specify your custom device
-    at::Tensor ret = at::from_blob(cpu_tensor.data_ptr(), size, stride, deleter, options); // Include the deleter
-
-    std::cout << "[DEBUG] Tensor type:" << ret.device().type() << std::endl;
-		return ret;
-}
-
-// Handle tensor creation explicitly
-at::Tensor handle_empty_memory_format(
-    c10::IntArrayRef size,
-    c10::optional<at::ScalarType> dtype_opt,
-    c10::optional<c10::Layout> layout_opt,
-    c10::optional<c10::Device> device_opt,
-    c10::optional<bool> pin_memory_opt,
-    c10::optional<at::MemoryFormat> memory_format_opt) {
-
-    SPDLOG_INFO("[DEBUG] Redirecting aten::empty.memory_format to CPU");
-    return at::native::empty_cpu(size, dtype_opt, layout_opt,
-                                 c10::Device(c10::DeviceType::CPU), pin_memory_opt, memory_format_opt);
-}
 
 at::Tensor handle_copy_from(const at::Tensor& self, const at::Tensor& dst, bool non_blocking) {
-		SPDLOG_INFO("[DEBUG] copy_from called");
+		SPDLOG_INFO("[DEBUG] [Manual Kernel] copy_from called");
     // Ensure the destination tensor is on your custom device
     TORCH_CHECK(dst.device().type() == c10::DeviceType::PrivateUse1,
                 "_copy_from: Destination tensor must be on the REMOTE_CUDA device");
@@ -234,7 +192,7 @@ at::Tensor handle_copy_from(const at::Tensor& self, const at::Tensor& dst, bool 
     size_t src_num_bytes = self.nbytes();
 
     // For demonstration, log the copy operation
-    SPDLOG_INFO("[DEBUG] Copying {} bytes from CPU to REMOTE_CUDA device", src_num_bytes);
+    SPDLOG_INFO("[DEBUG] [Manual Kernel] Copying {} bytes from CPU to REMOTE_CUDA device", src_num_bytes);
 
     // 2. Allocate memory on the remote device (if not already allocated)
     void* dest_data = dst.data_ptr();
@@ -248,7 +206,7 @@ at::Tensor handle_copy_from(const at::Tensor& self, const at::Tensor& dst, bool 
 }
 
 at::Tensor& handle_copy_(at::Tensor& self, const at::Tensor& src, bool non_blocking) {
-		SPDLOG_INFO("[DEBUG] copy_ called");
+		SPDLOG_INFO("[DEBUG] [Manual Kernel] copy_ called");
     TORCH_CHECK(self.device().type() == c10::DeviceType::PrivateUse1,
                 "copy_: Destination tensor must be on the REMOTE_CUDA device");
 
@@ -270,7 +228,7 @@ at::Tensor& handle_copy_(at::Tensor& self, const at::Tensor& src, bool non_block
 }
 
 at::Tensor handle_to(const at::Tensor& self, c10::Device device, at::ScalarType dtype, bool non_blocking, bool copy) {
-		SPDLOG_INFO("[DEBUG] to called");
+		SPDLOG_INFO("[DEBUG] [Manual Kernel] to called");
     if (device.type() == c10::DeviceType::PrivateUse1) {
         // Create a new tensor on the REMOTE_CUDA device
         at::Tensor result = at::empty_strided(self.sizes(), self.strides(), self.options().device(device).dtype(dtype));
@@ -283,7 +241,7 @@ at::Tensor handle_to(const at::Tensor& self, c10::Device device, at::ScalarType 
 at::Tensor const& handle_resize_(at::Tensor const& self,
                                 c10::ArrayRef<c10::SymInt> size,
                                 c10::optional<c10::MemoryFormat> memory_format) {
-		SPDLOG_INFO("[DEBUG] resize called");
+		SPDLOG_INFO("[DEBUG] [Manual Kernel] resize called");
     // Get a mutable reference to work with
     at::Tensor& mutable_self = const_cast<at::Tensor&>(self);
 
@@ -323,7 +281,6 @@ TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
 		m.impl("to", remote_cuda::handle_to);
 		m.impl("resize_", remote_cuda::handle_resize_);
 		m.impl("copy_", remote_cuda::handle_copy_);
-		m.impl("empty.memory_format", remote_cuda::handle_empty_memory_format);
 }
 
 TORCH_LIBRARY_IMPL(_, PrivateUse1, m) {
